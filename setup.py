@@ -8,4 +8,5 @@ setup(name='g2x_helpers',
       url='https://github.com/spitfiredd/g2x_helpers',
       license='MIT',
       packages=['g2x_helpers', 'g2x_helpers.pysam', 'g2x_helpers.pyfpds'],
+      install_requires=['requests'],
       zip_safe=False)
