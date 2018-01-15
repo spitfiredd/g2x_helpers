@@ -10,6 +10,10 @@ import requests
 import json
 import warnings
 import urllib
+import xml
+from lxml import etree
+from io import StringIO, BytesIO
+
 
 warnings.filterwarnings('ignore')
 
@@ -137,24 +141,29 @@ class Contracts():
 
     def get(self, num_records=100, order='desc', **kwargs):
 
+        client = requests.session()
         # params = self.urllib.parse.quote(self.combine_params(self.convert_params(kwargs)))
         params = urllib.parse.quote(self.combine_params(self.convert_params(kwargs)),
                                     safe='+', encoding=None, errors=None)
+        namespaces = {
+            'http://www.fpdsng.com/FPDS': None,
+            'http://www.w3.org/2005/Atom': None,
+        }
         data = []
         i = 0
         # for n in range(0, num_records, 10):
         while num_records == "all" or i < num_records:
 
-            # self.log("querying {0}{1}&start={2}".format(self.feed_url,
-            #                                             params,
-            #                                             i))
-            resp = requests.get(self.feed_url + params + '&start={0}'.format(i),
-                                timeout=60, verify=False)
+            self.log("querying {0}{1}&start={2}".format(self.feed_url,
+                                                        params,
+                                                        i))
+            f = self.feed_url + params + '&start={0}'.format(i)
+            resp = client.get(f, timeout=60, verify=False)
             self.query_url = resp.url
-            # self.log("finished querying {0}".format(resp.url))
-            resp_data = xmltodict.parse(resp.text, process_namespaces=True,
-                                        namespaces={'http://www.fpdsng.com/FPDS': None,
-                                                    'http://www.w3.org/2005/Atom': None})
+            self.log("finished querying {0}".format(resp.url))
+            resp_data = xmltodict.parse(resp.text,
+                                        process_namespaces=True,
+                                        namespaces=namespaces)
             try:
                 processed_data = self.process_data(resp_data['feed']['entry'])
                 for pd in processed_data:
@@ -167,7 +176,6 @@ class Contracts():
 
             except KeyError as e:
                 # no results
-                # self.log("No results for query")
+                self.log("No results for query")
                 break
-
         return data
