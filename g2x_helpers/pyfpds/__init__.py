@@ -13,6 +13,8 @@ import urllib
 import xml
 from lxml import etree
 from io import StringIO, BytesIO
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 
 warnings.filterwarnings('ignore')
@@ -100,6 +102,26 @@ html_escape_table = {
     }
 
 
+def requests_retry_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504),
+    session=None,
+):
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+
 class Contracts():
 
     feed_url = "https://www.fpds.gov/ezsearch/FEEDS/ATOM?FEEDNAME=PUBLIC&q="
@@ -158,7 +180,7 @@ class Contracts():
                                                         params,
                                                         i))
             f = self.feed_url + params + '&start={0}'.format(i)
-            resp = client.get(f, timeout=60, verify=False)
+            resp = requests_retry_session(session=client).get(f, timeout=60, verify=False)
             self.query_url = resp.url
             self.log("finished querying {0}".format(resp.url))
             resp_data = xmltodict.parse(resp.text,
