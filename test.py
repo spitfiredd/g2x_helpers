@@ -5,6 +5,10 @@ from g2x_helpers.utils import nested_get
 import pandas as pd
 
 from pandas.tseries.offsets import BDay
+import logging
+
+l = logging.getLogger()
+l.disabled = True
 
 NAICS_LIST = ['541611', '541618', '541613', '541511', '541512', '541513',
               '541519', '518210', '541612', '519130', '541990', '541690',
@@ -101,7 +105,7 @@ def fpds_pull(idv_map=idv_map, award_map=award_map,
               naics_list=NAICS_LIST, **kwargs):
     for funding_agency in FUNDING_AGENCY_LIST:
         for naics in NAICS_LIST:
-            c = Contracts()
+            c = Contracts(logger=l)
             records = c.get(naics_code=naics, funding_agency_id=funding_agency,
                             num_records="all", **kwargs)
             for record in records:
@@ -118,6 +122,7 @@ def fpds_pull(idv_map=idv_map, award_map=award_map,
 dates = date_between_list()
 
 def get_intel():
+    print('pulling data...')
     dates = date_between_list()
     try:
         li = fpds_pull(modification_number=0,
