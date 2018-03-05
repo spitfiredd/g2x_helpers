@@ -85,22 +85,6 @@ field_map = {
 
 }
 
-boolean_map = {
-    True: 'Y',
-    False: 'N',
-}
-
-
-html_escape_table = {
-    ":": "%3A",
-    "[": "%5B",
-    "]": "%5D",
-    ",": "%2C",
-    " ": "%20",
-    '"': "%22",
-    '/': "%2F",
-    }
-
 
 def requests_retry_session(
     retries=3,
@@ -124,12 +108,20 @@ def requests_retry_session(
 
 class Contracts():
 
-    feed_url = "https://www.fpds.gov/ezsearch/FEEDS/ATOM?FEEDNAME=PUBLIC&q="
-    feed_size = 10
-    query_url = ''
+    # feed_url_default = 'https://www.fpds.gov/ezsearch/search.do?s=FPDS.GOV&indexName=awardfull&templateName=1.5.1&rss=1&feed=atom0.3&q='
+    # feed_size_default = 10
+    # query_url_default = ''
 
-    def __init__(self, logger=None):
-        #point logger to a log function, print by default
+    def __init__(self,
+                 logger=None,
+                 feed_url='https://www.fpds.gov/ezsearch/search.do?s=FPDS.GOV&indexName=awardfull&templateName=1.5.1&rss=1&feed=atom0.3&q=',
+                 feed_size=10,
+                 query_url='',
+                 show_logs=False):
+        self.feed_url = feed_url
+        self.feed_size = feed_size
+        self.query_url = query_url
+        self.show_logs = show_logs
         if logger:
             self.log = logger
         else:
@@ -138,11 +130,8 @@ class Contracts():
     def pretty_print(self, data):
         self.log(json.dumps(data, indent=4))
 
-    def html_escape(self, text):
-        return "".join(html_escape_table.get(c, c) for c in text)
 
     def convert_params(self, params):
-
         new_params = {}
         for k, v in params.items():
             new_params[field_map[k]] = v
@@ -164,7 +153,6 @@ class Contracts():
     def get(self, num_records=100, order='desc', **kwargs):
 
         client = requests.session()
-        # params = self.urllib.parse.quote(self.combine_params(self.convert_params(kwargs)))
         params = urllib.parse.quote(self.combine_params(self.convert_params(kwargs)),
                                     safe='+', encoding=None, errors=None)
         namespaces = {
@@ -173,16 +161,18 @@ class Contracts():
         }
         data = []
         i = 0
-        # for n in range(0, num_records, 10):
         while num_records == "all" or i < num_records:
-
-            # self.log("querying {0}{1}&start={2}".format(self.feed_url,
-            #                                             params,
-            #                                             i))
-            f = self.feed_url + params + '&start={0}'.format(i)
-            resp = requests_retry_session(session=client).get(f, timeout=60, verify=False)
+            if self.show_logs:
+                self.log("querying {0}{1}&start={2}".format(self.feed_url,
+                                                            params,
+                                                            i))
+            feed = self.feed_url + params + '&start={0}'.format(i)
+            resp = requests_retry_session(session=client).get(feed,
+                                                              timeout=60,
+                                                              verify=False)
             self.query_url = resp.url
-            # self.log("finished querying {0}".format(resp.url))
+            if self.show_logs:
+                self.log("finished querying {0}".format(resp.url))
             resp_data = xmltodict.parse(resp.text,
                                         process_namespaces=True,
                                         namespaces=namespaces)
@@ -191,13 +181,12 @@ class Contracts():
                 for pd in processed_data:
                     data.append(pd)
                     i += 1
-
-                # if data contains less than 10 records, break out of loop
                 if len(processed_data) < 10:
                     break
 
             except KeyError as e:
                 # no results
-                # self.log("No results for query")
+                if self.show_logs:
+                    self.log("No results for query")
                 break
         return data

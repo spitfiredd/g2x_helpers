@@ -105,7 +105,7 @@ def fpds_pull(idv_map=idv_map, award_map=award_map,
               naics_list=NAICS_LIST, **kwargs):
     for funding_agency in FUNDING_AGENCY_LIST:
         for naics in NAICS_LIST:
-            c = Contracts(logger=l)
+            c = Contracts()
             records = c.get(naics_code=naics, funding_agency_id=funding_agency,
                             num_records="all", **kwargs)
             for record in records:
