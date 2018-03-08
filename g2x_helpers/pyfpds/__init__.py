@@ -2,7 +2,7 @@
 
 __author__ = 'Daniel Donovan'
 __email__ = 'spitfiredd@gmail.com'
-__version__ = '0.5.4'
+__version__ = '0.5.41'
 
 from collections import OrderedDict
 import xmltodict

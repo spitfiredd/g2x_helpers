@@ -126,8 +126,9 @@ def get_intel():
     dates = date_between_list()
     try:
         li = fpds_pull(modification_number=0,
-                       obligated_amount='[200000,)',
-                       last_modified_date=dates)
+                       obligated_amount='[0,)',
+                       last_modified_date=dates,
+                       award_type='BPA')
     except xml.parsers.expat.ExpatError:
         pass
     lst = list(li)
