@@ -2,7 +2,7 @@
 
 __author__ = 'Daniel Donovan'
 __email__ = 'spitfiredd@gmail.com'
-__version__ = '0.1.1'
+__version__ = '0.5.4'
 
 from collections import OrderedDict
 import xmltodict
@@ -52,6 +52,7 @@ field_map = {
     'contract_pricing_type': 'TYPE_OF_CONTRACT_PRICING',
 
     'award_status': 'AWARD_STATUS',
+    'award_type': 'AWARD_TYPE',
     'contract_type': 'CONTRACT_TYPE',
     'created_by': 'CREATED_BY',
     'description': 'DESCRIPTION_OF_REQUIREMENT',
@@ -107,11 +108,6 @@ def requests_retry_session(
 
 
 class Contracts():
-
-    # feed_url_default = 'https://www.fpds.gov/ezsearch/search.do?s=FPDS.GOV&indexName=awardfull&templateName=1.5.1&rss=1&feed=atom0.3&q='
-    # feed_size_default = 10
-    # query_url_default = ''
-
     def __init__(self,
                  logger=None,
                  feed_url='https://www.fpds.gov/ezsearch/search.do?s=FPDS.GOV&indexName=awardfull&templateName=1.5.1&rss=1&feed=atom0.3&q=',

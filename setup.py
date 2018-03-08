@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='g2x_helpers',
-      version='0.5.3',
+      version='0.5.4',
       description='Helper Functions used across different packages',
       author='Daniel Donovan',
       author_email='spitfiredd@gmail.com',
