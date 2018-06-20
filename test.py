@@ -1,4 +1,5 @@
 from datetime import date
+import re
 
 from g2x_helpers.pyfpds import Contracts
 from g2x_helpers.utils import nested_get
@@ -96,71 +97,87 @@ idv_map = {
 }
 
 
-def date_between_list(stop=date.today()):
-    start = stop - BDay(5)
+def date_between_list(start=None, stop=date.today(), num_days=5):
+    if start is None:
+        start = stop - BDay(num_days)
     return "[{:%Y/%m/%d},{:%Y/%m/%d}]".format(start, stop)
 
 
-def fpds_pull(idv_map=idv_map, award_map=award_map,
-              naics_list=NAICS_LIST, **kwargs):
+
+# def fpds_pull(idv_map=idv_map, award_map=award_map,
+#               naics_list=NAICS_LIST, **kwargs):
+#     for funding_agency in FUNDING_AGENCY_LIST:
+#         for naics in NAICS_LIST:
+#             c = Contracts()
+#             records = c.get(naics_code=naics, funding_agency_id=funding_agency,
+#                             num_records="all", **kwargs)
+#             for record in records:
+#                 if 'IDV' in record['content']:
+#                     d = {key: nested_get(record, val, _sep='.') for key, val in idv_map.items()}
+#                     d['content_type'] = 'IDV'
+#                     print(d)
+#                     yield d
+#                 elif 'award' in record['content']:
+#                     d = {key: nested_get(record, val, _sep='|') for key, val in award_map.items()}
+#                     d['content_type'] = 'Award'
+#                     print(d)
+#                     yield d
+
+def fpds_pull(feed_url=None,
+              idv_map=idv_map,
+              award_map=award_map,
+              naics_list=NAICS_LIST,
+              **kwargs):
+    recList = []
     for funding_agency in FUNDING_AGENCY_LIST:
         for naics in NAICS_LIST:
-            c = Contracts()
+            c = Contracts(feed_url=feed_url)
             records = c.get(naics_code=naics, funding_agency_id=funding_agency,
                             num_records="all", **kwargs)
             for record in records:
                 if 'IDV' in record['content']:
-                    d = {key: nested_get(record, val, _sep='.') for key, val in idv_map.items()}
+                    d = {key: nested_get(record, val, _sep='.')
+                         for key, val in idv_map.items()}
                     d['content_type'] = 'IDV'
-                    yield d
+                    recList.append(d)
                 elif 'award' in record['content']:
-                    d = {key: nested_get(record, val, _sep='|') for key, val in award_map.items()}
+                    d = {key: nested_get(record, val, _sep='|')
+                         for key, val in award_map.items()}
                     d['content_type'] = 'Award'
-                    yield d
-
-
-dates = date_between_list()
-
-def get_intel():
-    print('pulling data...')
-    dates = date_between_list()
-    try:
-        li = fpds_pull(modification_number=0,
-                       obligated_amount='[0,)',
-                       last_modified_date=dates,
-                       award_type='BPA')
-    except xml.parsers.expat.ExpatError:
-        pass
-    lst = list(li)
+                    recList.append(d)
     pd.set_option('display.max_colwidth', -1)
-    df = pd.DataFrame(lst)
-    try:
-        df.base_and_all_options_value = df.base_and_all_options_value.astype(float).fillna(0.0)
-        df.action_obligation = df.action_obligation.astype(float).fillna(0.0)
-        df['action_obligation_fmt'] = df['action_obligation'].map('${:,.2f}'.format)
-        df['base_and_all_options_value_fmt'] = df['base_and_all_options_value'].map('${:,.2f}'.format)
-        df['effective_date'] = pd.to_datetime(df['effective_date'])
-        df['ultimate_completion_date'] = pd.to_datetime(df['ultimate_completion_date'])
-        df['created_date'] = pd.to_datetime(df['created_date'])
-        df['signed_date'] = pd.to_datetime(df['signed_date'])
-        df['last_modified_date'] = pd.to_datetime(df['last_modified_date'])
-        df['duration'] = (df['ultimate_completion_date'] - df['effective_date']).dt.days
-        df['duration'] = df['duration'] / 30
-        df['duration'] = df['duration'].apply(lambda x: round(x, 0))
-        df['today'] = pd.to_datetime('today')
-        df['mark_for_deletion'] = (df['today'] - df['created_date']).dt.days
-        df['ultimate_completion_date_fmt'] = df['ultimate_completion_date'].dt.strftime('%Y-%m-%d')
-        df['created_date_fmt'] = df['created_date'].dt.strftime('%Y-%m-%d')
-        df['signed_date_fmt'] = df['signed_date'].dt.strftime('%Y-%m-%d')
-        df['effective_date_fmt'] = df['effective_date'].dt.strftime('%Y-%m-%d')
-        df['today_fmt'] = df['today'].dt.strftime('%Y-%m-%d')
-        df['last_modified_date_fmt'] = df['last_modified_date'].dt.strftime('%Y-%m-%d')
-    except KeyError:
-        pass
-    df = df[df['mark_for_deletion'] < 121]
-    df.sort_values(by=['last_modified_date', 'created_date'], ascending=False, inplace=True)
-    intel = df.to_dict(orient='records')
+    combined_df = pd.DataFrame(recList)
+    return combined_df
+
+
+
+def etl_process(num_days=5):
+    base_url = 'https://www.fpds.gov/ezsearch/FEEDS/ATOM?s=FPDS&FEEDNAME=PUBLIC&VERSION=1.5.1&q='
+    dates = date_between_list(num_days=num_days)
+    df = fpds_pull(feed_url=base_url,
+                   modification_number=0,
+                   obligated_amount='[0,)',
+                   date_signed=dates)
+    df.fillna('0', inplace=True)
+    df['last_modified_int'] = df.apply(lambda x: '%s' % (re.sub("[^0-9]","", x['last_modified_date'])), axis=1)
+    id_list = ['contract_piid', 'contract_mod_number', 'referenced_idv_piid',
+               'referenced_idvid_modnumber', 'last_modified_int']
+    df['id'] = df[id_list].apply(lambda x: ''.join(x), axis=1)
+    df['vendor_as_int'] = df['vendor_duns'].astype(int)
+    df['global_as_int'] = df['global_duns'].astype(int)
+    df['vendor_duns'] = df['vendor_duns'].apply('{:0>9}'.format)
+    df['global_duns'] = df['global_duns'].apply('{:0>9}'.format)
+    df.drop('last_modified_int', axis=1, inplace=True)
+
+    # Convert dates to datetime objects
+    df['effective_date'] = pd.to_datetime(df['effective_date'], errors='coerce')
+    df['ultimate_completion_date'] = pd.to_datetime(df['ultimate_completion_date'], errors='coerce')
+    df['created_date'] = pd.to_datetime(df['created_date'], errors='coerce')
+    df['signed_date'] = pd.to_datetime(df['signed_date'], errors='coerce')
+    df['last_modified_date'] = pd.to_datetime(df['last_modified_date'], errors='coerce')
+    df['current_completion_date'] = pd.to_datetime(df['current_completion_date'], errors='coerce')
     return df
 
-test = get_intel()
+
+test = etl_process()
 test.to_csv('test.csv')

@@ -110,7 +110,7 @@ def requests_retry_session(
 class Contracts():
     def __init__(self,
                  logger=None,
-                 feed_url='https://www.fpds.gov/ezsearch/search.do?s=FPDS.GOV&indexName=awardfull&templateName=1.5.1&rss=1&feed=atom0.3&q=',
+                 feed_url='https://www.fpds.gov/ezsearch/FEEDS/ATOM?s=FPDS&FEEDNAME=PUBLIC&VERSION=1.5.1&q=',
                  feed_size=10,
                  query_url='',
                  show_logs=False):
@@ -154,6 +154,7 @@ class Contracts():
         namespaces = {
             'http://www.fpdsng.com/FPDS': None,
             'http://www.w3.org/2005/Atom': None,
+            'https://www.fpds.gov/FPDS': None,
         }
         data = []
         i = 0
@@ -171,7 +172,8 @@ class Contracts():
                 self.log("finished querying {0}".format(resp.url))
             resp_data = xmltodict.parse(resp.text,
                                         process_namespaces=True,
-                                        namespaces=namespaces)
+                                        namespaces=namespaces,
+                                        dict_constructor=dict)
             try:
                 processed_data = self.process_data(resp_data['feed']['entry'])
                 for pd in processed_data:
