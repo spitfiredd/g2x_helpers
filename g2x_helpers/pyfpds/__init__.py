@@ -171,12 +171,16 @@ class Contracts():
                                                                   verify=False)
             except requests.exceptions.HTTPError as errh:
                 print("Http Error:", errh)
+                print(feed)
             except requests.exceptions.ConnectionError as errc:
                 print("Error Connecting:", errc)
+                print(feed)
             except requests.exceptions.Timeout as errt:
                 print("Timeout Error:", errt)
+                print(feed)
             except requests.exceptions.RequestException as err:
                 print("Oops: Something Else", err)
+                print(feed)
             self.query_url = resp.url
             if self.show_logs:
                 self.log("finished querying {0}".format(resp.url))
