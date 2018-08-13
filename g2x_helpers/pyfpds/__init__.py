@@ -15,6 +15,7 @@ from lxml import etree
 from io import StringIO, BytesIO
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import requests.exceptions
 
 
 warnings.filterwarnings('ignore')
@@ -164,9 +165,18 @@ class Contracts():
                                                             params,
                                                             i))
             feed = self.feed_url + params + '&start={0}'.format(i)
-            resp = requests_retry_session(session=client).get(feed,
-                                                              timeout=60,
-                                                              verify=False)
+            try:
+                resp = requests_retry_session(session=client).get(feed,
+                                                                  timeout=60,
+                                                                  verify=False)
+            except requests.exceptions.HTTPError as errh:
+                print("Http Error:", errh)
+            except requests.exceptions.ConnectionError as errc:
+                print("Error Connecting:", errc)
+            except requests.exceptions.Timeout as errt:
+                print("Timeout Error:", errt)
+            except requests.exceptions.RequestException as err:
+                print("Oops: Something Else", err)
             self.query_url = resp.url
             if self.show_logs:
                 self.log("finished querying {0}".format(resp.url))

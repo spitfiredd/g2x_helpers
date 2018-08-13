@@ -130,8 +130,8 @@ def fpds_pull(feed_url=None,
               **kwargs):
     recList = []
     for funding_agency in FUNDING_AGENCY_LIST:
-        for naics in NAICS_LIST:
-            c = Contracts(feed_url=feed_url)
+        for naics in naics_list:
+            c = Contracts(feed_url=feed_url, show_logs=True)
             records = c.get(naics_code=naics, funding_agency_id=funding_agency,
                             num_records="all", **kwargs)
             for record in records:
